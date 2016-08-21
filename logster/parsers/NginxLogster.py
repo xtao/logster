@@ -75,8 +75,8 @@ class NginxLogster(LogsterParser):
                     self.http_4xx += 1
                 else:
                     self.http_5xx += 1
-                self.metric.append(MetricObject("%s.http.%s" % (host, http_code), 1, "", metric_type='c'))
-                self.metric.append(MetricObject("%s.http.response_time" % (host), response_time_in_ms, "", metric_type='h'))
+                self.metrics.append(MetricObject("statsd.http.code,http_host=%s,http_code=%s" % (host, http_code), 1, "", metric_type='c'))
+                self.metrics.append(MetricObject("statsd.http.response_time,http_host=%s" % (host), response_time_in_ms, "", metric_type='h'))
             else:
                 raise LogsterParsingException("regmatch failed to match")
 
