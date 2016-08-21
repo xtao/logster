@@ -47,7 +47,7 @@ class NginxLogster(LogsterParser):
         """
         $remote_addr - $remote_user [$time_local] $host "$request" $status $bytes_sent "$http_referer" "$http_user_agent" "$http_x_forwarded_for" $upstream_response_time;
         """
-        self.reg = re.compile('(?P<remote_addr>\d{1,3}\.\d{1,3}.\d{1,3}.\d{1,3}) - - \[(?P<time_local>.*)\] (?P<host>\S+) "(?P<request>\w{3,6}.* \w{0,4}/\d\.\d)" (?P<http_status_code>\d+) (?P<bytes_sent>\d+) "(?P<http_referer>\S+)" ["](?P<http_user_agent>.*)["] ["](?P<http_x_forwarded_for>\d{1,3}\.\d{1,3}.\d{1,3}.\d{1,3})["] (?P<upstream_response_time>\d+\.\d+)')
+        self.reg = re.compile('(?P<remote_addr>\d{1,3}\.\d{1,3}.\d{1,3}.\d{1,3}) - - \[(?P<time_local>.*)\] (?P<host>\S+) "(?P<request>\w{3,6}.* \w{0,4}/\d\.\d)" (?P<http_status_code>\d+) (?P<bytes_sent>\d+) "(?P<http_referer>\S+)" ["](?P<http_user_agent>.*)["] ["](?P<http_x_forwarded_for>.*)["] (?P<upstream_response_time>\d+\.\d+)')
 
     def parse_line(self, line):
         '''This function should digest the contents of one line at a time, updating
