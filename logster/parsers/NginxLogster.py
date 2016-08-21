@@ -61,7 +61,7 @@ class NginxLogster(LogsterParser):
                 linebits = regMatch.groupdict()
                 host = linebits['host']
                 response_time = float(linebits['upstream_response_time'])
-                response_time_in_ms = int(response_time) * 1000 + response_time - int(response_time)
+                response_time_in_ms = int(int(response_time) * 1000 + (response_time - int(response_time)) * 1000)
                 http_code = linebits['http_status_code']
                 status = int(http_code)
 
