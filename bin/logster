@@ -45,6 +45,7 @@ import os
 import sys
 import optparse
 import stat
+import glob
 import logging.handlers
 import logging.config
 import traceback
@@ -262,18 +263,13 @@ def end_locking(lockfile_fd, lockfile_name):
 
 
 def main():
-    dirsafe_logfile = log_file.replace('/','-')
-    state_file = '%s/%s-%s%s.state' % (state_dir, tailer_klass.short_name, parser_klass_name, dirsafe_logfile)
+    dirsafe_logfile = log_file.replace('/','-').replace('*','-')
     lock_file  = '%s/%s-%s%s.lock' % (state_dir, tailer_klass.short_name, parser_klass_name, dirsafe_logfile)
-    tailer = tailer_klass(log_file, state_file, options, logger)
 
-    logger.info("Executing parser %s on logfile %s" % (parser_klass_name, log_file))
-    logger.debug("Using state file %s" % state_file)
 
     # Import and instantiate the class from the module passed in.
     module_name, parser_name = parser_klass_name.rsplit('.', 1)
     module = __import__(module_name, globals(), locals(), [parser_name])
-    parser = getattr(module, parser_name)(option_string=options.parser_options)
 
     # Instantiate output classes
     outputs = [output_klass(cmdline, options, logger) for output_klass in options.output]
@@ -287,36 +283,45 @@ def main():
         logger.warning(str(e))
         sys.exit(1)
 
+    log_files = glob.glob(log_file)
+
     # Get input to parse.
     try:
+        for f in log_files:
+            dirsafe_logfile = f.replace('/','-')
 
-        # Read the age of the state file to see how long it's been since we last
-        # ran. Replace the state file if it has gone missing. While we are here,
-        # touch the state file to reset the time in case the tailer doesn't
-        # find any new lines (and thus won't update the statefile).
-        try:
-            state_file_age = os.stat(state_file)[stat.ST_MTIME]
+            state_file = '%s/%s-%s%s.state' % (state_dir, tailer_klass.short_name, parser_klass_name, dirsafe_logfile)
+            tailer = tailer_klass(f, state_file, options, logger)
+            logger.info("Executing parser %s on logfile %s" % (parser_klass_name, f))
+            logger.debug("Using state file %s" % state_file)
 
-            # Calculate now() - state file age to determine check duration.
-            duration = floor(time()) - floor(state_file_age)
-            logger.debug("Setting duration to %s seconds." % duration)
-
-        except OSError as e:
-            logger.info('Writing new state file and exiting. (Was either first run, or state file went missing.)')
-            tailer.create_statefile()
-            end_locking(lockfile, lock_file)
-            sys.exit(0)
-
-        # Parse each line from input, then send all stats to their collectors.
-        for line in tailer.ireadlines():
+            # Read the age of the state file to see how long it's been since we last
+            # ran. Replace the state file if it has gone missing. While we are here,
+            # touch the state file to reset the time in case the tailer doesn't
+            # find any new lines (and thus won't update the statefile).
             try:
-                parser.parse_line(line)
-            except LogsterParsingException as e:
-                # This should only catch recoverable exceptions (of which there
-                # aren't any at the moment).
-                logger.debug("Parsing exception caught at %s: %s" % (lineno(), e))
+                state_file_age = os.stat(state_file)[stat.ST_MTIME]
 
-        submit_stats(parser, duration, outputs)
+                # Calculate now() - state file age to determine check duration.
+                duration = floor(time()) - floor(state_file_age)
+                logger.debug("Setting duration to %s seconds." % duration)
+
+            except OSError as e:
+                logger.info('Writing new state file and exiting. (Was either first run, or state file went missing.)')
+                tailer.create_statefile()
+                continue
+
+            # Parse each line from input, then send all stats to their collectors.
+            parser = getattr(module, parser_name)(option_string=options.parser_options)
+            for line in tailer.ireadlines():
+                try:
+                    parser.parse_line(line)
+                except LogsterParsingException as e:
+                    # This should only catch recoverable exceptions (of which there
+                    # aren't any at the moment).
+                    logger.debug("Parsing exception caught at %s: %s" % (lineno(), e))
+
+            submit_stats(parser, duration, outputs)
 
     except SystemExit as e:
         raise
